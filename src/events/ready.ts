@@ -3,9 +3,10 @@ import * as testCommand from '../commands/test.js';
 // import * as wordcountCommand from '../commands/wordcount.js';
 import * as krampusCommand from '../commands/krampus.js';
 import * as eightballCommand from '../commands/eightball.js';
+import * as smackCommand from '../commands/smack.js';
 import type { BotCommand } from '../types/index.js';
 
-const commands: BotCommand[] = [testCommand, /* wordcountCommand, */ krampusCommand, eightballCommand];
+const commands: BotCommand[] = [testCommand, /* wordcountCommand, */ krampusCommand, eightballCommand, smackCommand];
 
 const krampusStatuses = [
   'Watching the naughty list...',

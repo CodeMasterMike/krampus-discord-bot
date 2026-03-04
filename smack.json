@@ -1,0 +1,12 @@
+{
+  "roleId": "",
+  "durationSeconds": 60,
+  "cooldownSeconds": 300,
+  "messages": [
+    "Krampus swings his birch rod at {target}! They have been punished!",
+    "{user} calls upon Krampus to smack {target} with the birch rod!",
+    "The birch switches crack! {target} has been disciplined by Krampus!",
+    "*THWACK!* {target} feels the sting of Krampus's birch rod, courtesy of {user}!",
+    "Krampus drags {target} away for a good thrashing! Requested by {user}."
+  ]
+}

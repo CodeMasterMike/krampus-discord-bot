@@ -41,6 +41,14 @@ export interface UpdateResult {
 
 export type WordOccurrences = Record<string, number>;
 
+// Smack config types
+export interface SmackConfig {
+  roleId: string;
+  durationSeconds: number;
+  cooldownSeconds: number;
+  messages: string[];
+}
+
 // Encounters config types
 export interface EncountersConfig {
   chance: number;
