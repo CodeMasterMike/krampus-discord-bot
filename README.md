@@ -54,7 +54,7 @@ Slash commands are registered automatically on startup.
 
 ## Add Bot to Your Server
 
-[Click here to invite the bot to your Discord server](https://discord.com/oauth2/authorize?client_id=1457497048331845657&permissions=274877974592&integration_type=0&scope=bot)
+[Click here to invite the bot to your Discord server](https://discord.com/oauth2/authorize?client_id=1457497048331845657&permissions=275146410048&integration_type=0&scope=bot)
 
 ## Slash Commands
 
