@@ -1,5 +1,5 @@
 {
-  "roleId": "",
+  "roleId": "YOUR_ROLE_ID_HERE",
   "durationSeconds": 60,
   "cooldownSeconds": 300,
   "messages": [

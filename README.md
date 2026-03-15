@@ -37,12 +37,10 @@ patterns.json              # Pattern matching configuration
 npm install
 ```
 
-Create a `.env` file in the project root:
+Create a `.env` file from the template and fill in your credentials:
 
-```
-APP_ID=your_app_id
-DISCORD_TOKEN=your_bot_token
-PUBLIC_KEY=your_public_key
+```bash
+cp .env.example .env
 ```
 
 ### Run the Bot
@@ -73,8 +71,10 @@ Summon Krampus to smack another user with his birch rod. This assigns a configur
 
 **Setup:**
 1. Create a cosmetic role in your Discord server (e.g. "Punished by Krampus")
-2. Copy the role's ID and paste it into `smack.json` under `roleId`
-3. Ensure the bot's role is **above** the punishment role in the server role hierarchy
+2. Enable Developer Mode in Discord (Settings > Advanced > Developer Mode)
+3. Go to Server Settings > Roles, right-click the role you created, and click **Copy Role ID**
+4. Paste the role ID into `smack.json` under `roleId`
+5. Ensure the bot's role is **above** the punishment role in the server role hierarchy
 
 **Configuration (`smack.json`):**
 ```json
@@ -115,19 +115,6 @@ Patterns are defined in `patterns.json`. The bot checks each incoming message ag
 
 Changes to `patterns.json` require a bot restart (or use `npm run dev` for auto-reload).
 
-## Adding a New Slash Command
+## Contributing
 
-1. Create a file in `src/commands/` (e.g. `ping.js`):
-   ```js
-   import { SlashCommandBuilder } from 'discord.js';
-
-   export const data = new SlashCommandBuilder()
-     .setName('ping')
-     .setDescription('Replies with pong');
-
-   export async function execute(interaction) {
-     await interaction.reply('Pong!');
-   }
-   ```
-2. Import it in `src/events/ready.js` and add it to the `commands` array
-3. Import it in `src/events/interactionCreate.js` and add it to the `commands` Collection
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, project conventions, and how to add new commands or patterns.

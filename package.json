@@ -1,8 +1,8 @@
 {
-  "name": "discord-getting-started",
+  "name": "krampus-bot",
   "private": true,
   "version": "1.0.0",
-  "description": "Discord example app",
+  "description": "A Discord bot that monitors messages and reacts or replies based on configurable patterns. And other fun Krampus things.",
   "main": "dist/bot.js",
   "type": "module",
   "engines": {
@@ -14,7 +14,7 @@
     "dev": "nodemon --exec tsx src/bot.ts --ext ts,json",
     "typecheck": "tsc --noEmit"
   },
-  "author": "Shay DeWael",
+  "author": "Michael McAlpin",
   "license": "MIT",
   "dependencies": {
     "discord.js": "^14.14.1",

@@ -1,12 +1,14 @@
 import { ActivityType, Client, Events, REST, Routes } from 'discord.js';
 import * as testCommand from '../commands/test.js';
-// import * as wordcountCommand from '../commands/wordcount.js';
+import * as wordcountCommand from '../commands/wordcount.js';
 import * as krampusCommand from '../commands/krampus.js';
 import * as eightballCommand from '../commands/eightball.js';
 import * as smackCommand from '../commands/smack.js';
+import * as versionCommand from '../commands/version.js';
 import type { BotCommand } from '../types/index.js';
+import { version } from '../utils/version.js';
 
-const commands: BotCommand[] = [testCommand, /* wordcountCommand, */ krampusCommand, eightballCommand, smackCommand];
+const commands: BotCommand[] = [testCommand, wordcountCommand, krampusCommand, eightballCommand, smackCommand, versionCommand];
 
 const krampusStatuses = [
   'Watching the naughty list...',
@@ -38,7 +40,7 @@ export const name = Events.ClientReady;
 export const once = true;
 
 export async function execute(c: Client<true>): Promise<void> {
-  console.log(`Logged in as ${c.user.tag}`);
+  console.log(`Krampus Bot v${version} — logged in as ${c.user.tag}`);
 
   // Start cycling creepy statuses
   setRandomStatus(c);
