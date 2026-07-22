@@ -65,7 +65,7 @@ export interface ScoreTracker {
   roundGroup: number;
   scoreGroup: number;
   maxGroup: number;
-  /** 'higher' = a bigger score is better (e.g. putt.day made putts). */
+  /** 'lower' = a smaller score is better (golf: fewest strokes wins). */
   direction: 'higher' | 'lower';
   /** Emoji to react with when a score is logged. */
   confirmReaction?: string;
@@ -103,7 +103,7 @@ export interface ScoreStats {
   rounds: number;
   /** Average score achieved (e.g. 6.4 out of 10). */
   average: number;
-  /** Average putts missed per round (max - score). Lower is better. */
+  /** Scoring average — for lower-is-better games this is avg strokes per round. */
   handicap: number;
   max: number;
   best: RoundEntry | null;

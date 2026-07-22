@@ -7,7 +7,7 @@
       "roundGroup": 1,
       "scoreGroup": 2,
       "maxGroup": 3,
-      "direction": "higher",
+      "direction": "lower",
       "confirmReaction": "⛳",
       "minPlayersForMedal": 2
     }

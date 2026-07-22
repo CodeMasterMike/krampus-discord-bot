@@ -208,14 +208,17 @@ export function computeAllMedals(trackerId: string): Record<string, MedalCounts>
   return result;
 }
 
+/**
+ * Scoring average, always expressed so that lower is better.
+ * Golf (lower-is-better): the raw stroke average. Higher-is-better games
+ * are inverted into "missed" units so both sort the same way.
+ */
 function computeHandicap(rounds: RoundEntry[], direction: 'higher' | 'lower'): number {
   if (rounds.length === 0) return 0;
   if (direction === 'higher') {
-    // Average putts missed per round.
     const misses = rounds.reduce((sum, e) => sum + (e.max - e.score), 0);
     return misses / rounds.length;
   }
-  // Lower-is-better games: the raw average already reads as a handicap.
   return rounds.reduce((sum, e) => sum + e.score, 0) / rounds.length;
 }
 

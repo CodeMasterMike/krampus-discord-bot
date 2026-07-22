@@ -18,9 +18,10 @@ function medalLine(m: MedalCounts): string {
   return `🥇 ${m.gold}  🥈 ${m.silver}  🥉 ${m.bronze}`;
 }
 
+// Lower strokes are better — the worse your average, the closer the basket.
 function flavor(handicap: number): string {
-  if (handicap <= 2) return 'Krampus grudgingly spares you... for now.';
-  if (handicap <= 4) return 'Mediocre. Krampus is unimpressed.';
+  if (handicap <= 4) return 'Krampus grudgingly spares you... for now.';
+  if (handicap <= 6) return 'Mediocre. Krampus is unimpressed.';
   return 'Straight to the naughty list. The birch rod awaits your putter.';
 }
 
@@ -48,8 +49,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const lines: string[] = [];
   lines.push(`⛳ **Scorecard for <@${targetUser.id}>** — ${tracker.name}`);
   lines.push(`Rounds played: **${stats.rounds}**`);
-  lines.push(`Handicap: **${stats.handicap.toFixed(1)}** _(avg missed putts)_`);
-  lines.push(`Average: **${stats.average.toFixed(1)}/${stats.max}**`);
+  lines.push(`Handicap: **${stats.handicap.toFixed(1)}** _(avg strokes per round — lower is better)_`);
   if (stats.best) {
     lines.push(`Best round: **${stats.best.score}/${stats.best.max}**`);
   }
