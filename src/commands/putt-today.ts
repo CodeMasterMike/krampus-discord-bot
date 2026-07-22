@@ -28,7 +28,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   }
 
   const placings = computeRoundPlacings(TRACKER_ID, round);
-  const lines: string[] = [`⛳ **${tracker.name} #${round} — today's scorecard** _(lowest score wins)_`];
+  const lines: string[] = [`⛳ **${tracker.name} #${round} — today's scorecard**`];
 
   for (const p of placings) {
     lines.push(`${medalFor(p.place)} <@${p.userId}> — **${formatToPar(p.toPar)}** _(${p.score} strokes, par ${p.par})_`);

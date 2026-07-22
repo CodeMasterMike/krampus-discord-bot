@@ -21,7 +21,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     return;
   }
 
-  const lines: string[] = [`⛳ **${tracker.name} leaderboard** — lowest handicap wins`];
+  const lines: string[] = [`⛳ **${tracker.name} leaderboard**`];
 
   board.slice(0, MAX_ROWS).forEach((e, i) => {
     const medals = `🥇${e.medals.gold} 🥈${e.medals.silver} 🥉${e.medals.bronze}`;
