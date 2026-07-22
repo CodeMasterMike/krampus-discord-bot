@@ -64,7 +64,7 @@ src/
 - **`patternToRegex()`** — Converts pattern strings to RegExp: escapes special chars, replaces `*` with `.*`, case-insensitive.
 - **Slash command registration** (`ready.ts`) — On `ClientReady`, registers commands globally via Discord REST API PUT to `/applications/{APP_ID}/commands`.
 - **Word tracking** (`wordcounter.ts`) — Counts tracked word occurrences per user, persists to `data/wordcounts-data.json`, announces milestones.
-- **Score tracking** (`scoretracker.ts`) — Config-driven score parser (`scoretrackers.json`) for daily-puzzle games like putt.day. On each message, runs every tracker's regex; the first submission of a given round number per user is logged to `data/scores-data.json` (later re-posts of the same round are ignored) and confirmed with a quiet reaction. Golf scoring: **lowest score wins**. Handicap = scoring average (avg strokes per round); place finishes (🥇🥈🥉) are derived live by ranking each round's participants ascending (ties share a place; rounds need `minPlayersForMedal` players to count). "Today" = the highest round number recorded. Surfaced via `/putt-today`, `/putt-leaderboard`, `/putt-card`.
+- **Score tracking** (`scoretracker.ts`) — Config-driven score parser (`scoretrackers.json`) for daily-puzzle games like putt.day. On each message, runs every tracker's regex; the first submission of a given round number per user is logged to `data/scores-data.json` (later re-posts of the same round are ignored) and confirmed with a quiet reaction. Golf scoring: the captured pair is **strokes/par** (e.g. `9/10` is a birdie against par 10), and **lowest wins**. Handicap = average strokes relative to par (negative = under par); because par is captured per round, this stays fair when par varies. Place finishes (🥇🥈🥉) are derived live by ranking each round's participants by to-par (ties share a place; rounds need `minPlayersForMedal` players to count). Rounds logged before par was understood were stored as `max` and are migrated to `par` on load. "Today" = the highest round number recorded. Surfaced via `/putt-today`, `/putt-leaderboard`, `/putt-card`.
 
 **Pattern Config Format (`patterns.json`):**
 ```json
@@ -86,7 +86,7 @@ Patterns are loaded once at startup — changes to `patterns.json` require a bot
       "id": "puttday",
       "name": "putt.day",
       "pattern": "putt\\.day #(\\d+).*?(\\d+)/(\\d+)",
-      "roundGroup": 1, "scoreGroup": 2, "maxGroup": 3,
+      "roundGroup": 1, "scoreGroup": 2, "parGroup": 3,
       "direction": "lower",
       "confirmReaction": "⛳",
       "minPlayersForMedal": 2
@@ -95,4 +95,4 @@ Patterns are loaded once at startup — changes to `patterns.json` require a bot
 }
 ```
 
-`pattern` is a regex whose capture groups yield the round number, score, and max (indices given by `roundGroup`/`scoreGroup`/`maxGroup`). `direction: "lower"` means a smaller score is better (golf convention — fewest strokes wins); `"higher"` inverts the ranking for make-count style games. Add another game by appending a tracker entry — no code changes needed, though the golf-named commands stay bound to the `puttday` tracker.
+`pattern` is a regex whose capture groups yield the round number, strokes, and par (indices given by `roundGroup`/`scoreGroup`/`parGroup`). `direction: "lower"` means a smaller score is better (golf convention — fewest strokes wins); `"higher"` inverts the ranking for make-count style games. Add another game by appending a tracker entry — no code changes needed, though the golf-named commands stay bound to the `puttday` tracker.

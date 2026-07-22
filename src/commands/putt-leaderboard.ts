@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { getTracker, getLeaderboard } from '../utils/scoretracker.js';
+import { getTracker, getLeaderboard, formatToPar } from '../utils/scoretracker.js';
 
 const TRACKER_ID = 'puttday';
 const MAX_ROWS = 15;
@@ -26,7 +26,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   board.slice(0, MAX_ROWS).forEach((e, i) => {
     const medals = `🥇${e.medals.gold} 🥈${e.medals.silver} 🥉${e.medals.bronze}`;
     lines.push(
-      `**${i + 1}.** <@${e.userId}> — hcp **${e.handicap.toFixed(1)}** · ${e.rounds} rounds · ${medals}`
+      `**${i + 1}.** <@${e.userId}> — hcp **${formatToPar(e.handicap, 1)}** · ${e.rounds} rounds · ${medals}`
     );
   });
 

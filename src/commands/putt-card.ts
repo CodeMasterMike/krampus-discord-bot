@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { getTracker, computeStats } from '../utils/scoretracker.js';
+import { getTracker, computeStats, formatToPar, scoreToPar } from '../utils/scoretracker.js';
 import type { MedalCounts } from '../types/index.js';
 
 const TRACKER_ID = 'puttday';
@@ -18,11 +18,11 @@ function medalLine(m: MedalCounts): string {
   return `🥇 ${m.gold}  🥈 ${m.silver}  🥉 ${m.bronze}`;
 }
 
-// Lower strokes are better — the worse your average, the closer the basket.
+// Handicap is strokes vs par — under par is good, over par earns the basket.
 function flavor(handicap: number): string {
-  if (handicap <= 4) return 'Krampus grudgingly spares you... for now.';
-  if (handicap <= 6) return 'Mediocre. Krampus is unimpressed.';
-  return 'Straight to the naughty list. The birch rod awaits your putter.';
+  if (handicap <= -1) return 'Under par. Krampus grudgingly spares you... for now.';
+  if (handicap <= 1) return 'Hovering around par. Krampus is unimpressed.';
+  return 'Over par. Straight to the naughty list — the birch rod awaits your putter.';
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -49,12 +49,14 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const lines: string[] = [];
   lines.push(`⛳ **Scorecard for <@${targetUser.id}>** — ${tracker.name}`);
   lines.push(`Rounds played: **${stats.rounds}**`);
-  lines.push(`Handicap: **${stats.handicap.toFixed(1)}** _(avg strokes per round — lower is better)_`);
+  lines.push(`Handicap: **${formatToPar(stats.handicap, 1)}** _(avg strokes vs par)_`);
   if (stats.best) {
-    lines.push(`Best round: **${stats.best.score}/${stats.best.max}**`);
+    const toPar = scoreToPar(stats.best, tracker.direction);
+    lines.push(`Best round: **${formatToPar(toPar)}** _(${stats.best.score} strokes, par ${stats.best.par})_`);
   }
   if (stats.last) {
-    lines.push(`Last round: **${stats.last.entry.score}/${stats.last.entry.max}** (#${stats.last.round})`);
+    const toPar = scoreToPar(stats.last.entry, tracker.direction);
+    lines.push(`Last round (#${stats.last.round}): **${formatToPar(toPar)}** _(${stats.last.entry.score} strokes, par ${stats.last.entry.par})_`);
   }
   lines.push(`Medals: ${medalLine(stats.medals)}`);
   lines.push(`_${flavor(stats.handicap)}_`);

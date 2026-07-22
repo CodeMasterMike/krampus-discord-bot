@@ -60,11 +60,11 @@ export interface EncountersConfig {
 export interface ScoreTracker {
   id: string;
   name: string;
-  /** Regex (as a string) with capture groups for round, score, and max. */
+  /** Regex (as a string) with capture groups for round, score, and par. */
   pattern: string;
   roundGroup: number;
   scoreGroup: number;
-  maxGroup: number;
+  parGroup: number;
   /** 'lower' = a smaller score is better (golf: fewest strokes wins). */
   direction: 'higher' | 'lower';
   /** Emoji to react with when a score is logged. */
@@ -79,8 +79,10 @@ export interface ScoreTrackersFile {
 
 // A single logged round for a user.
 export interface RoundEntry {
+  /** Strokes taken. */
   score: number;
-  max: number;
+  /** Par for that round — captured per round, since it can vary. */
+  par: number;
   recordedAt: string;
 }
 
@@ -101,11 +103,12 @@ export interface MedalCounts {
 
 export interface ScoreStats {
   rounds: number;
-  /** Average score achieved (e.g. 6.4 out of 10). */
+  /** Average raw strokes per round. */
   average: number;
-  /** Scoring average — for lower-is-better games this is avg strokes per round. */
+  /** Golf handicap: average strokes relative to par. Negative is under par. */
   handicap: number;
-  max: number;
+  /** Par of the most recent round. */
+  par: number;
   best: RoundEntry | null;
   worst: RoundEntry | null;
   last: { round: string; entry: RoundEntry } | null;
@@ -117,7 +120,9 @@ export interface RoundPlacing {
   userId: string;
   username: string;
   score: number;
-  max: number;
+  par: number;
+  /** Strokes relative to par for this round. */
+  toPar: number;
   /** 1-indexed place; ties share a place (competition ranking). */
   place: number;
 }
@@ -126,7 +131,9 @@ export interface LeaderboardEntry {
   userId: string;
   username: string;
   rounds: number;
+  /** Average raw strokes per round. */
   average: number;
+  /** Golf handicap: average strokes relative to par. */
   handicap: number;
   medals: MedalCounts;
 }

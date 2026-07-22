@@ -6,7 +6,7 @@
       "pattern": "putt\\.day #(\\d+).*?(\\d+)/(\\d+)",
       "roundGroup": 1,
       "scoreGroup": 2,
-      "maxGroup": 3,
+      "parGroup": 3,
       "direction": "lower",
       "confirmReaction": "⛳",
       "minPlayersForMedal": 2

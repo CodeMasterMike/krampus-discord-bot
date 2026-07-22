@@ -93,7 +93,7 @@ export async function execute(message: Message): Promise<void> {
 
     const result = recordScore(tracker.id, message.author.id, message.author.username, parsed);
     console.log(
-      `[DEBUG] ${tracker.name} score by ${message.author.tag}: #${parsed.round} ${parsed.score}/${parsed.max} → ${result}`
+      `[DEBUG] ${tracker.name} score by ${message.author.tag}: #${parsed.round} ${parsed.score}/${parsed.par} → ${result}`
     );
 
     // Confirm a freshly logged score with a quiet reaction; ignore duplicates.

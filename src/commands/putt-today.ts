@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { getTracker, getLatestRound, computeRoundPlacings } from '../utils/scoretracker.js';
+import { getTracker, getLatestRound, computeRoundPlacings, formatToPar } from '../utils/scoretracker.js';
 
 const TRACKER_ID = 'puttday';
 
@@ -31,7 +31,7 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
   const lines: string[] = [`⛳ **${tracker.name} #${round} — today's scorecard** _(lowest score wins)_`];
 
   for (const p of placings) {
-    lines.push(`${medalFor(p.place)} <@${p.userId}> — **${p.score}/${p.max}**`);
+    lines.push(`${medalFor(p.place)} <@${p.userId}> — **${formatToPar(p.toPar)}** _(${p.score} strokes, par ${p.par})_`);
   }
 
   if (placings.length < tracker.minPlayersForMedal) {
