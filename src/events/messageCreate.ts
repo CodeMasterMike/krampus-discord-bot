@@ -8,10 +8,12 @@ import {
   formatMilestoneMessage
 } from '../utils/wordcounter.js';
 import { loadEncountersConfig, rollEncounter, formatEncounterMessage } from '../utils/encounters.js';
+import { getTrackers, parseScore, recordScore } from '../utils/scoretracker.js';
 
 const patternsConfig = loadPatterns();
 const wordCountConfig = loadWordCountConfig();
 const encountersConfig = loadEncountersConfig();
+const scoreTrackers = getTrackers();
 
 export const name = Events.MessageCreate;
 export const once = false;
@@ -80,6 +82,26 @@ export async function execute(message: Message): Promise<void> {
         }
       } catch (error) {
         console.error('Error sending milestone callout:', error);
+      }
+    }
+  }
+
+  // Score tracking — log the first entry per round per user (e.g. putt.day)
+  for (const tracker of scoreTrackers) {
+    const parsed = parseScore(content, tracker);
+    if (!parsed) continue;
+
+    const result = recordScore(tracker.id, message.author.id, message.author.username, parsed);
+    console.log(
+      `[DEBUG] ${tracker.name} score by ${message.author.tag}: #${parsed.round} ${parsed.score}/${parsed.max} → ${result}`
+    );
+
+    // Confirm a freshly logged score with a quiet reaction; ignore duplicates.
+    if (result === 'recorded' && tracker.confirmReaction) {
+      try {
+        await message.react(tracker.confirmReaction);
+      } catch (error) {
+        console.error(`Error reacting to ${tracker.name} score:`, error);
       }
     }
   }

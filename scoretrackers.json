@@ -1,0 +1,15 @@
+{
+  "trackers": [
+    {
+      "id": "puttday",
+      "name": "putt.day",
+      "pattern": "putt\\.day #(\\d+).*?(\\d+)/(\\d+)",
+      "roundGroup": 1,
+      "scoreGroup": 2,
+      "maxGroup": 3,
+      "direction": "higher",
+      "confirmReaction": "⛳",
+      "minPlayersForMedal": 2
+    }
+  ]
+}
