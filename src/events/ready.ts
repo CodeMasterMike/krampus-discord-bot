@@ -5,10 +5,23 @@ import * as krampusCommand from '../commands/krampus.js';
 import * as eightballCommand from '../commands/eightball.js';
 import * as smackCommand from '../commands/smack.js';
 import * as versionCommand from '../commands/version.js';
+import * as puttTodayCommand from '../commands/putt-today.js';
+import * as puttLeaderboardCommand from '../commands/putt-leaderboard.js';
+import * as puttCardCommand from '../commands/putt-card.js';
 import type { BotCommand } from '../types/index.js';
 import { version } from '../utils/version.js';
 
-const commands: BotCommand[] = [testCommand, wordcountCommand, krampusCommand, eightballCommand, smackCommand, versionCommand];
+const commands: BotCommand[] = [
+  testCommand,
+  wordcountCommand,
+  krampusCommand,
+  eightballCommand,
+  smackCommand,
+  versionCommand,
+  puttTodayCommand,
+  puttLeaderboardCommand,
+  puttCardCommand
+];
 
 const krampusStatuses = [
   'Watching the naughty list...',

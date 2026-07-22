@@ -5,6 +5,9 @@ import * as krampusCommand from '../commands/krampus.js';
 import * as eightballCommand from '../commands/eightball.js';
 import * as smackCommand from '../commands/smack.js';
 import * as versionCommand from '../commands/version.js';
+import * as puttTodayCommand from '../commands/putt-today.js';
+import * as puttLeaderboardCommand from '../commands/putt-leaderboard.js';
+import * as puttCardCommand from '../commands/putt-card.js';
 import type { BotCommand } from '../types/index.js';
 
 const commands = new Collection<string, BotCommand>();
@@ -14,6 +17,9 @@ commands.set(krampusCommand.data.name, krampusCommand);
 commands.set(eightballCommand.data.name, eightballCommand);
 commands.set(smackCommand.data.name, smackCommand);
 commands.set(versionCommand.data.name, versionCommand);
+commands.set(puttTodayCommand.data.name, puttTodayCommand);
+commands.set(puttLeaderboardCommand.data.name, puttLeaderboardCommand);
+commands.set(puttCardCommand.data.name, puttCardCommand);
 
 export const name = Events.InteractionCreate;
 export const once = false;
