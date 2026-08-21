@@ -29,13 +29,15 @@ Optional, and **the only correct home for server-specific IDs** (see `src/utils/
 - `SMACK_ROLE_ID` - punishment role for `/smack`
 - `PUTT_CALLOUT_CHANNEL_ID` - channel the daily no-show roll call posts to
 
-`smack.json` and `scoretrackers.json` are tracked in git and the deploy runs a plain `git pull`, which refuses to overwrite local edits to tracked files. Because `deploy.yml` neither sets `set -e` nor chains its steps, a rejected pull still proceeds to build and restart — the deploy reports success having shipped nothing. Keeping IDs in `.env` (gitignored) avoids that entirely. Each resolves via `resolveId()`: env first, committed config as fallback, and the shipped placeholder counts as unset.
+`smack.json` and `scoretrackers.json` are tracked in git and the deploy runs `git pull`, which refuses to overwrite local edits to tracked files — so editing config on the VM breaks every future deploy until it is reverted. (`deploy.yml` now fails fast and names the files; it used to press on and restart the old code, reporting success having shipped nothing.) Keeping IDs in `.env` (gitignored) avoids the situation entirely. Each resolves via `resolveId()`: env first, committed config as fallback, and the shipped placeholder counts as unset.
 
 **Important:** Enable MESSAGE_CONTENT privileged intent in Discord Developer Portal (Bot > Privileged Gateway Intents).
 
 ## Deployment
 
-Pushing to `main` triggers `.github/workflows/deploy.yml`: SSH to the VM (`VM_HOST`/`VM_USER`/`VM_SSH_KEY` secrets), `git pull`, `npm install`, `npm run build`, then restart under pm2 as `krampus-bot`. Because config JSON is read at startup, a deploy is also what picks up config edits. VM provisioning notes live in `docs/azure-vm-setup.md`.
+Pushing to `main` triggers `.github/workflows/deploy.yml`: SSH to the VM (`VM_HOST`/`VM_USER`/`VM_SSH_KEY` secrets), `git pull --ff-only`, `npm ci`, `npm run build`, then restart under pm2 as `krampus-bot`. Because config JSON is read at startup, a deploy is also what picks up config edits. VM provisioning notes live in `docs/azure-vm-setup.md`.
+
+**The deploy is fail-loud by design.** It ran silently-successful for a while: no `set -e`, unchained steps, so a rejected `git pull` still built and restarted the old code and the job went green. Now `script_stop: true` plus `set -euo pipefail` aborts on the first failure. Order matters — the build runs **before** `pm2 delete`, so a compile error fails the deploy with the old bot still serving. A dirty VM working tree is caught up front with the file list, since that is the failure mode tracked config invites. Finally, because `pm2 start` returns 0 the moment it forks, a post-start health check waits 8s and fails the job (dumping 60 log lines) unless pm2 reports `online` with a restart count of 0 — a non-zero count that soon means it is crash-looping on boot.
 
 ## Architecture
 

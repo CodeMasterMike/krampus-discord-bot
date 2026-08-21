@@ -2,11 +2,11 @@
  * Resolving server-specific IDs without committing them.
  *
  * `smack.json` and `scoretrackers.json` are tracked in git, and the deploy
- * runs a plain `git pull` (.github/workflows/deploy.yml). Editing a tracked
- * config on the VM makes that pull refuse to overwrite the local change — and
- * because the workflow neither sets `set -e` nor chains its steps, the build
- * and pm2 restart still run against the *old* code. The deploy goes green
- * having deployed nothing.
+ * runs `git pull` (.github/workflows/deploy.yml). Editing a tracked config on
+ * the VM makes that pull refuse to overwrite the local change, breaking every
+ * future deploy until someone reverts it by hand. The workflow now fails fast
+ * with the offending file list; it used to press on and restart the old code,
+ * reporting success having deployed nothing.
  *
  * So real channel/role IDs live in `.env`, which is already gitignored and
  * already how credentials reach the VM. The committed config keeps a

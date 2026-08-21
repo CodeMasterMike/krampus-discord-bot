@@ -51,7 +51,7 @@ cp .env.example .env
 
 ### Server-specific IDs
 
-Channel and role IDs are **not** committed. `smack.json` and `scoretrackers.json` are tracked in git, and the deploy runs a plain `git pull` — which refuses to overwrite local edits to a tracked file. Worse, the workflow neither sets `set -e` nor chains its steps, so the build and pm2 restart still run against the *old* code: the deploy goes green having deployed nothing.
+Channel and role IDs are **not** committed. `smack.json` and `scoretrackers.json` are tracked in git, and the deploy runs `git pull` — which refuses to overwrite local edits to a tracked file. Editing config directly on the VM therefore breaks every future deploy until you revert it (the workflow now catches this and fails with the file list, rather than quietly restarting the old code as it once did).
 
 So the real IDs go in `.env`, which is gitignored and already how credentials reach the VM:
 
@@ -293,6 +293,10 @@ The bot sets a rotating "custom status" — ominous one-liners like *Counting yo
 ## Deployment
 
 Pushing to `main` runs [.github/workflows/deploy.yml](.github/workflows/deploy.yml), which SSHes into the host VM, pulls, installs, builds, and restarts the bot under pm2. It expects `VM_HOST`, `VM_USER`, and `VM_SSH_KEY` repository secrets. See [docs/azure-vm-setup.md](docs/azure-vm-setup.md) for provisioning the VM.
+
+The deploy fails loudly rather than half-succeeding. It aborts on the first failing command, refuses to invent a merge commit (`git pull --ff-only`), installs with `npm ci` so the lockfile is never rewritten on the server, and builds **before** touching pm2 so a broken build leaves the running bot alone. Afterwards it waits and checks pm2: if the bot is not `online`, or restarted at all within 8 seconds of a fresh start, the job dumps the last 60 log lines and fails. Deploys are queued rather than run concurrently.
+
+If the VM working tree has uncommitted changes, the deploy stops immediately and prints the offending files — this is the case [Server-specific IDs](#server-specific-ids) exists to prevent.
 
 Since config is read at startup, deploying is also how config changes take effect in production.
 

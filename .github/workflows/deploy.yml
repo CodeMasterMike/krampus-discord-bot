@@ -4,9 +4,17 @@ on:
   push:
     branches: [main]
 
+# Two deploys landing on the VM at once would fight over git and pm2. Queue
+# them instead; never cancel one mid-flight, which could leave the bot deleted
+# from pm2 but not yet restarted.
+concurrency:
+  group: deploy-vm
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Deploy to VM via SSH
         uses: appleboy/ssh-action@v1
@@ -14,11 +22,59 @@ jobs:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USER }}
           key: ${{ secrets.VM_SSH_KEY }}
+          # Abort on the first failing command. Without this the remote script
+          # runs to completion regardless, so a rejected `git pull` still built
+          # and restarted the old code and the job reported success.
+          script_stop: true
           script: |
+            set -euo pipefail
+
             cd ~/revenge-of-krampus-discord-bot
-            git pull
-            npm install
+
+            # Config files are tracked, so editing one on the VM makes `git pull`
+            # refuse to overwrite it. Fail here with the actual file list rather
+            # than three steps later with a confusing merge error.
+            if ! git diff --quiet HEAD; then
+              echo "::error::VM working tree has uncommitted changes, so git pull will be rejected. Move server-specific values into .env (gitignored) and revert these files."
+              git status --short
+              exit 1
+            fi
+
+            # --ff-only: never invent a merge commit on the server.
+            git pull --ff-only
+
+            # npm ci, not npm install: install can rewrite package-lock.json,
+            # dirtying the tree and blocking the *next* deploy at the check above.
+            npm ci
+
+            # Build before touching pm2. A broken build should fail the deploy
+            # with the old bot still running, not take it down first.
             npm run build
+
             pm2 delete krampus-bot || true
             pm2 start npm --name krampus-bot -- start
             pm2 save
+
+            # `pm2 start` returns 0 the moment it forks, so it succeeds even when
+            # the bot throws on boot (missing .env, bad token, config typo). Give
+            # it a few seconds, then confirm it is actually alive. A non-zero
+            # restart count this soon after a fresh start means it already crashed.
+            sleep 8
+
+            health=$(pm2 jlist | node -e 'let r="";process.stdin.on("data",d=>r+=d);process.stdin.on("end",()=>{let l;try{l=JSON.parse(r)}catch(e){console.log("unparseable 0");return}const p=l.find(x=>x.name==="krampus-bot");console.log(p?p.pm2_env.status+" "+(p.pm2_env.restart_time||0):"missing 0")})')
+            state=${health%% *}
+            restarts=${health##* }
+
+            if [ "$state" != "online" ]; then
+              echo "::error::krampus-bot is '$state' after deploy, not online."
+              pm2 logs krampus-bot --lines 60 --nostream || true
+              exit 1
+            fi
+
+            if [ "$restarts" -gt 0 ]; then
+              echo "::error::krampus-bot restarted $restarts time(s) within 8s of starting — it is crash-looping."
+              pm2 logs krampus-bot --lines 60 --nostream || true
+              exit 1
+            fi
+
+            echo "krampus-bot is online (restarts: $restarts)."
