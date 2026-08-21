@@ -146,11 +146,11 @@ Summon Krampus to smack another user with his birch rod. This assigns a configur
 
 ## Passive Features
 
-The bot watches every message (ignoring other bots) and runs four independent checks. They don't cancel each other out — one message can trigger several.
+The bot watches every message (ignoring other bots) and runs four independent checks. They don't cancel each other out — a single message can pick up several pattern reactions, a pattern reply, a word-count milestone callout, a logged score, and a Krampus encounter all at once. Duplicate emoji are collapsed so the same reaction is never applied twice.
 
 ### Pattern Matching
 
-Patterns are defined in `patterns.json`. The bot checks each incoming message against patterns in order and stops at the first match.
+Patterns are defined in `patterns.json`. The bot checks each incoming message against every pattern in order and fires **all** of them that match — a message saying both "hello" and "meat" earns both reactions, and a `reply` pattern fires alongside them.
 
 ```json
 {
@@ -196,7 +196,7 @@ Every message has a small chance of Krampus making himself known — either a re
 ```
 
 - **`chance`** — Probability per message (0–1). `0.02` is 2%.
-- On a hit, the bot picks a reaction or a message with even odds. `{user}` becomes a mention.
+- On a hit, the reaction and the message are rolled independently, so Krampus can react **and** speak in the same appearance. If both rolls miss, one is picked at random so a hit is never silent. `chance` still controls how often he shows up at all. `{user}` becomes a mention.
 
 ### putt.day Score Tracking
 

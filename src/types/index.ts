@@ -54,6 +54,13 @@ export interface SmackConfig {
 }
 
 // Encounters config types
+/** One thing a Krampus encounter does. A single hit can yield several. */
+export interface EncounterAction {
+  type: 'react' | 'reply';
+  /** Emoji for react, message template for reply. */
+  value: string;
+}
+
 export interface EncountersConfig {
   chance: number;
   messages: string[];
