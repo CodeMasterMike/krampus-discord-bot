@@ -9,7 +9,35 @@
       "parGroup": 3,
       "direction": "lower",
       "confirmReaction": "⛳",
-      "minPlayersForMedal": 2
+      "minPlayersForMedal": 2,
+
+      "anchorRound": 70,
+      "anchorDate": "2026-07-21",
+      "timezone": "America/New_York",
+
+      "missedDayPenaltyStrokes": 5,
+      "missedDayFallbackToPar": 5,
+      "minPlayersForPenaltyDay": 1,
+      "minRoundsForMonthlyRank": 1,
+
+      "callout": {
+        "enabled": true,
+        "channelId": "YOUR_CHANNEL_ID_HERE",
+        "channelIdEnv": "PUTT_CALLOUT_CHANNEL_ID",
+        "hour": 12,
+        "minute": 0,
+        "messages": [
+          "Krampus consulted the ledger for {date}. {count} putter(s) never showed for {round}: {users}. The birch rod records **{penalty}** against each of them.",
+          "The green sat empty for {users} on {date}. Round {round} is gone forever, and **{penalty}** has been carved into their card.",
+          "{users} — absent for {round}. Krampus does not forget an empty scorecard. **{penalty}**, and the chains rattle closer.",
+          "Roll call for {round}: {users} failed to answer. Krampus adds **{penalty}** to the tally and sharpens something in the dark.",
+          "The snow on {date} shows no footprints from {users}. Round {round} counts against them: **{penalty}**."
+        ],
+        "perfectDayMessages": [
+          "Every putter answered the bell for {round}. Krampus is denied a single victim today. Disappointing.",
+          "Round {round}: a full field. No absences, no penalties. Krampus sulks by the fire."
+        ]
+      }
     }
   ]
 }

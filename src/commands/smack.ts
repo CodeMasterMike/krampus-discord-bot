@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, GuildMember, SlashCommandBuilder } from 'discord.js';
-import { loadSmackConfig, isOnCooldown, setCooldown, getRemainingCooldown, formatSmackMessage } from '../utils/smack.js';
+import { loadSmackConfig, getSmackRoleId, isOnCooldown, setCooldown, getRemainingCooldown, formatSmackMessage } from '../utils/smack.js';
 
 export const data = new SlashCommandBuilder()
   .setName('smack')
@@ -38,12 +38,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const config = loadSmackConfig();
 
-  if (!config.roleId) {
+  const roleId = getSmackRoleId();
+  if (!roleId) {
     await interaction.reply({ content: 'The smack role has not been configured yet.', flags: 64 });
     return;
   }
 
-  const role = guild.roles.cache.get(config.roleId);
+  const role = guild.roles.cache.get(roleId);
   if (!role) {
     await interaction.reply({ content: 'The configured punishment role was not found in this server.', flags: 64 });
     return;
