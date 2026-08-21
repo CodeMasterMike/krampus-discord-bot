@@ -51,18 +51,27 @@ cp .env.example .env
 
 ### Server-specific IDs
 
-Channel and role IDs are **not** committed. `smack.json` and `scoretrackers.json` are tracked in git, and the deploy runs `git pull` — which refuses to overwrite local edits to a tracked file. Editing config directly on the VM therefore breaks every future deploy until you revert it (the workflow now catches this and fails with the file list, rather than quietly restarting the old code as it once did).
+Channel and role IDs are **not** committed. `smack.json` and `scoretrackers.json` are tracked in git, and the deploy runs `git pull` — which refuses to overwrite local edits to a tracked file. Editing config directly on the VM therefore breaks every future deploy until you revert it; the workflow catches this and fails with the file list.
 
-So the real IDs go in `.env`, which is gitignored and already how credentials reach the VM:
+IDs live in environment variables instead. Two of them:
 
-```bash
-PUTT_CALLOUT_CHANNEL_ID=000000000000000000   # daily no-show roll call posts here
-SMACK_ROLE_ID=000000000000000001             # role assigned by /smack
-```
+| Variable | Purpose | Unset means |
+|----------|---------|-------------|
+| `PUTT_CALLOUT_CHANNEL_ID` | Channel the daily no-show roll call posts to | Roll call disabled; logs `scheduler idle` at boot |
+| `SMACK_ROLE_ID` | Role assigned by `/smack` | `/smack` replies "The smack role has not been configured yet." |
 
 To find an ID: enable **Developer Mode** (Discord Settings → Advanced → Developer Mode), then right-click the channel or role and choose **Copy Channel ID** / **Copy Role ID**. On mobile, long-press instead. Alternatively the channel URL is `discord.com/channels/<serverId>/<channelId>` — the last number is the channel.
 
-Both are optional. Leave one unset and its feature simply stays off: the roll call logs `scheduler idle` at boot, and `/smack` replies "The smack role has not been configured yet." The committed JSON keeps a placeholder plus the message templates, and the environment wins whenever it holds a real value.
+The committed JSON keeps a placeholder plus the message templates, and the environment wins whenever it holds a real value.
+
+**Locally**, set them in `.env` (gitignored):
+
+```bash
+PUTT_CALLOUT_CHANNEL_ID=000000000000000000
+SMACK_ROLE_ID=000000000000000001
+```
+
+**In production**, do *not* edit `.env` on the VM — it is regenerated on every deploy. Set them as repository secrets instead; see [Deployment](#deployment).
 
 Make sure the bot has **View Channel** and **Send Messages** in the callout channel, and that its own role sits **above** the punishment role in the server hierarchy.
 
@@ -292,13 +301,34 @@ The bot sets a rotating "custom status" — ominous one-liners like *Counting yo
 
 ## Deployment
 
-Pushing to `main` runs [.github/workflows/deploy.yml](.github/workflows/deploy.yml), which SSHes into the host VM, pulls, installs, builds, and restarts the bot under pm2. It expects `VM_HOST`, `VM_USER`, and `VM_SSH_KEY` repository secrets. See [docs/azure-vm-setup.md](docs/azure-vm-setup.md) for provisioning the VM.
+Pushing to `main` runs [.github/workflows/deploy.yml](.github/workflows/deploy.yml), which SSHes into the host VM, pulls, installs, builds, writes `.env`, and restarts the bot under pm2. See [docs/azure-vm-setup.md](docs/azure-vm-setup.md) for provisioning the VM.
 
-The deploy fails loudly rather than half-succeeding. It aborts on the first failing command, refuses to invent a merge commit (`git pull --ff-only`), installs with `npm ci` so the lockfile is never rewritten on the server, and builds **before** touching pm2 so a broken build leaves the running bot alone. Afterwards it waits and checks pm2: if the bot is not `online`, or restarted at all within 8 seconds of a fresh start, the job dumps the last 60 log lines and fails. Deploys are queued rather than run concurrently.
+### Repository secrets
 
-If the VM working tree has uncommitted changes, the deploy stops immediately and prints the offending files — this is the case [Server-specific IDs](#server-specific-ids) exists to prevent.
+Set these under **Settings → Secrets and variables → Actions**. They are the single source of truth for the bot's configuration — there is no reason to SSH into the VM to change a value.
 
-Since config is read at startup, deploying is also how config changes take effect in production.
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `VM_HOST` | yes | SSH host |
+| `VM_USER` | yes | SSH user |
+| `VM_SSH_KEY` | yes | SSH private key |
+| `APP_ID` | yes | Discord application ID |
+| `DISCORD_TOKEN` | yes | Bot token |
+| `PUBLIC_KEY` | yes | Discord application public key |
+| `SMACK_ROLE_ID` | no | Role assigned by `/smack` |
+| `PUTT_CALLOUT_CHANNEL_ID` | no | Channel for the daily no-show roll call |
+
+**The VM's `.env` is generated from these on every deploy**, so anything you edit there by hand is overwritten. Change a value in GitHub and re-run the deploy. The three credentials are required: if any is missing the deploy fails *before* writing anything, leaving the running bot untouched. The two optional IDs are written empty when unset, which simply leaves their features disabled — so deleting a secret is how you turn one off.
+
+Since config JSON is read at startup, deploying is also how config changes take effect in production.
+
+### Failure behavior
+
+The deploy fails loudly rather than half-succeeding. It aborts on the first failing command, refuses to invent a merge commit (`git pull --ff-only`), installs with `npm ci` so the lockfile is never rewritten on the server, and builds **before** touching `.env` or pm2 — so a broken build leaves the running bot and its config alone. `.env` is written to a temp file and renamed, so a failure part-way through can never leave it half-written.
+
+Afterwards it checks pm2: if the bot is not `online`, or restarted at all within 8 seconds of a fresh start, the job dumps the last 60 log lines and fails. That last check matters because `pm2 start` returns success the moment it forks, even when the bot throws on boot.
+
+If the VM working tree has uncommitted changes, the deploy stops immediately and prints the offending files — the case [Server-specific IDs](#server-specific-ids) exists to prevent. Deploys are queued rather than run concurrently.
 
 ## Contributing
 

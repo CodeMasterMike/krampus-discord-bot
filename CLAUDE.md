@@ -29,7 +29,9 @@ Optional, and **the only correct home for server-specific IDs** (see `src/utils/
 - `SMACK_ROLE_ID` - punishment role for `/smack`
 - `PUTT_CALLOUT_CHANNEL_ID` - channel the daily no-show roll call posts to
 
-`smack.json` and `scoretrackers.json` are tracked in git and the deploy runs `git pull`, which refuses to overwrite local edits to tracked files — so editing config on the VM breaks every future deploy until it is reverted. (`deploy.yml` now fails fast and names the files; it used to press on and restart the old code, reporting success having shipped nothing.) Keeping IDs in `.env` (gitignored) avoids the situation entirely. Each resolves via `resolveId()`: env first, committed config as fallback, and the shipped placeholder counts as unset.
+`smack.json` and `scoretrackers.json` are tracked in git and the deploy runs `git pull`, which refuses to overwrite local edits to tracked files — so editing config on the VM breaks every future deploy until it is reverted (`deploy.yml` fails fast and names the files). Keeping IDs in the environment avoids the situation entirely. Each resolves via `resolveId()`: env first, committed config as fallback, and the shipped placeholder counts as unset.
+
+**In production nothing is hand-edited.** The VM's `.env` is regenerated from repository secrets on every deploy, so `.env` there is an artifact, not a source. Add or change a value under Settings > Secrets and variables > Actions. Locally, `.env` is yours to edit.
 
 **Important:** Enable MESSAGE_CONTENT privileged intent in Discord Developer Portal (Bot > Privileged Gateway Intents).
 
@@ -37,7 +39,9 @@ Optional, and **the only correct home for server-specific IDs** (see `src/utils/
 
 Pushing to `main` triggers `.github/workflows/deploy.yml`: SSH to the VM (`VM_HOST`/`VM_USER`/`VM_SSH_KEY` secrets), `git pull --ff-only`, `npm ci`, `npm run build`, then restart under pm2 as `krampus-bot`. Because config JSON is read at startup, a deploy is also what picks up config edits. VM provisioning notes live in `docs/azure-vm-setup.md`.
 
-**The deploy is fail-loud by design.** It ran silently-successful for a while: no `set -e`, unchained steps, so a rejected `git pull` still built and restarted the old code and the job went green. Now `script_stop: true` plus `set -euo pipefail` aborts on the first failure. Order matters — the build runs **before** `pm2 delete`, so a compile error fails the deploy with the old bot still serving. A dirty VM working tree is caught up front with the file list, since that is the failure mode tracked config invites. Finally, because `pm2 start` returns 0 the moment it forks, a post-start health check waits 8s and fails the job (dumping 60 log lines) unless pm2 reports `online` with a restart count of 0 — a non-zero count that soon means it is crash-looping on boot.
+**The deploy writes `.env` from repository secrets.** `APP_ID`/`DISCORD_TOKEN`/`PUBLIC_KEY` are required and the job fails before writing anything if one is missing, leaving the running bot untouched; `SMACK_ROLE_ID` and `PUTT_CALLOUT_CHANNEL_ID` are optional and written empty when unset, which `resolveId()` reads as "not configured". The file is written to a temp path and renamed so it can never be left half-written, and only key names are ever echoed. Values pass through `printf %s`, so a token containing `$`, backticks, or quotes is written literally — verified round-trip against dotenv.
+
+**The deploy is fail-loud by design.**
 
 ## Architecture
 

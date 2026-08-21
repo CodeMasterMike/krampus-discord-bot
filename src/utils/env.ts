@@ -8,9 +8,11 @@
  * with the offending file list; it used to press on and restart the old code,
  * reporting success having deployed nothing.
  *
- * So real channel/role IDs live in `.env`, which is already gitignored and
- * already how credentials reach the VM. The committed config keeps a
- * placeholder plus the message templates, and env wins at runtime.
+ * So real channel/role IDs come from the environment instead. Locally that is
+ * a gitignored `.env`; in production the deploy generates `.env` on the VM
+ * from repository secrets, making GitHub the single place a value is ever
+ * changed. The committed config keeps a placeholder plus the message
+ * templates, and env wins at runtime.
  */
 
 /** Values that mean "nobody has filled this in yet". */
