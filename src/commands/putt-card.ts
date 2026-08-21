@@ -1,12 +1,20 @@
 import { ChatInputCommandInteraction, SlashCommandBuilder } from 'discord.js';
-import { getTracker, computeStats, formatToPar, scoreToPar } from '../utils/scoretracker.js';
+import {
+  getTracker,
+  computeStats,
+  formatToPar,
+  scoreToPar,
+  getCurrentMonth,
+  getMonthlyStanding
+} from '../utils/scoretracker.js';
+import { monthLabel } from '../utils/scoredates.js';
 import type { MedalCounts } from '../types/index.js';
 
 const TRACKER_ID = 'puttday';
 
 export const data = new SlashCommandBuilder()
   .setName('putt-card')
-  .setDescription("Check a putter's scorecard — handicap, average, and medals...")
+  .setDescription("Check a putter's scorecard — handicap, month standing, streak, and medals...")
   .addUserOption(option =>
     option
       .setName('user')
@@ -23,6 +31,11 @@ function flavor(handicap: number): string {
   if (handicap <= -1) return 'Under par. Krampus grudgingly spares you... for now.';
   if (handicap <= 1) return 'Hovering around par. Krampus is unimpressed.';
   return 'Over par. Straight to the naughty list — the birch rod awaits your putter.';
+}
+
+function ordinal(n: number): string {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] ?? 'th';
+  return `${n}${suffix}`;
 }
 
 export async function execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -48,6 +61,29 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
 
   const lines: string[] = [];
   lines.push(`⛳ **Scorecard for <@${targetUser.id}>** — ${tracker.name}`);
+
+  // --- This month's tournament ---
+  const month = getCurrentMonth(TRACKER_ID);
+  const standing = getMonthlyStanding(TRACKER_ID, month, targetUser.id);
+
+  lines.push('');
+  lines.push(`**${monthLabel(month)} tournament**`);
+  if (standing) {
+    const rank = standing.qualified ? ordinal(standing.place) : 'unqualified';
+    lines.push(
+      `Total: **${standing.totalStrokes}/${standing.totalPar}** (${formatToPar(standing.toPar)}) — ${rank}`
+    );
+    lines.push(`Played **${standing.roundsPlayed}** · missed **${standing.missedDays}**` +
+      (standing.penaltyStrokes > 0 ? ` _(+${standing.penaltyStrokes} in penalties)_` : ''));
+    lines.push(`Streak: **${standing.currentStreak}** 🔥 _(best this month: ${standing.longestStreak})_`);
+    lines.push(`Month medals: ${medalLine(standing.medals)}`);
+  } else {
+    lines.push('_No rounds this month. Krampus is already sharpening the birch rod._');
+  }
+
+  // --- All-time ---
+  lines.push('');
+  lines.push('**All time**');
   lines.push(`Rounds played: **${stats.rounds}**`);
   lines.push(`Handicap: **${formatToPar(stats.handicap, 1)}** _(avg strokes vs par)_`);
   if (stats.best) {

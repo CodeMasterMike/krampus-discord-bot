@@ -8,8 +8,13 @@ import * as versionCommand from '../commands/version.js';
 import * as puttTodayCommand from '../commands/putt-today.js';
 import * as puttLeaderboardCommand from '../commands/putt-leaderboard.js';
 import * as puttCardCommand from '../commands/putt-card.js';
+import * as puttMonthCommand from '../commands/putt-month.js';
+import * as puttSeasonCommand from '../commands/putt-season.js';
+import * as puttHelpCommand from '../commands/putt-help.js';
 import type { BotCommand } from '../types/index.js';
 import { version } from '../utils/version.js';
+import { migrateScoreDataFile } from '../utils/scoretracker.js';
+import { startCalloutScheduler } from '../utils/callout.js';
 
 const commands: BotCommand[] = [
   testCommand,
@@ -55,9 +60,17 @@ export const once = true;
 export async function execute(c: Client<true>): Promise<void> {
   console.log(`Krampus Bot v${version} — logged in as ${c.user.tag}`);
 
+  // Bring data/scores-data.json up to the current schema before anything reads it
+  if (migrateScoreDataFile()) {
+    console.log('[SCORES] Migrated scores-data.json to the current schema.');
+  }
+
   // Start cycling creepy statuses
   setRandomStatus(c);
   setInterval(() => setRandomStatus(c), STATUS_INTERVAL_MS);
+
+  // Daily no-show roll call for the putt.day tournament
+  startCalloutScheduler(c);
 
   // Register slash commands
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN!);

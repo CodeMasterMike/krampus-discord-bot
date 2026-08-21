@@ -12,7 +12,7 @@ src/
     messageCreate.ts       # Passive message handling (patterns, words, scores, encounters)
     interactionCreate.ts   # Slash command router
   commands/                # One file per slash command
-  utils/                   # Config loading, persistence, scoring math
+  utils/                   # Config loading, persistence, scoring math, scheduling
   types/index.ts           # Shared type definitions
 patterns.json              # Message pattern → react/reply rules
 wordcounts.json            # Tracked words, milestones, callout messages
@@ -79,8 +79,11 @@ Slash commands are registered automatically on startup.
 | `/smack @user` | Smack a user with Krampus's birch rod (assigns a temporary "punished" role) |
 | `/wordcount [user]` | See how often Krampus has caught someone saying tracked words (private reply) |
 | `/putt-today` | Today's putt.day scorecard and podium |
-| `/putt-leaderboard` | All putters ranked by handicap, with medal tallies |
-| `/putt-card [user]` | A putter's scorecard — handicap, best round, medals (private reply) |
+| `/putt-month [month]` | This month's tournament standings — totals, penalties, monthly medals |
+| `/putt-season` | Every tournament month and its champion |
+| `/putt-leaderboard` | All putters ranked by all-time handicap, with medal tallies |
+| `/putt-card [user]` | A putter's scorecard — month standing, streak, handicap, medals (private reply) |
+| `/putt-help [public]` | Every putt.day rule, generated from the live config (private reply by default) |
 
 ### `/smack` — Birch Rod Timeout
 
@@ -175,7 +178,27 @@ Post your daily putt.day result in chat and Krampus logs it with a quiet ⛳ rea
 
 Scoring follows golf: the numbers are **strokes/par**, so `9/10` is one under, and **lowest wins**. Your handicap is your average strokes relative to par, which stays fair even when par changes between rounds. Medals (🥇🥈🥉) are awarded per round to the best finishers, as long as enough people played.
 
-Read it back with `/putt-today`, `/putt-leaderboard`, and `/putt-card`.
+Read it back with `/putt-today`, `/putt-month`, `/putt-season`, `/putt-leaderboard`, `/putt-card`, and `/putt-help`.
+
+#### Monthly tournaments
+
+Every calendar month is its own tournament and **resets on the 1st**, in the timezone the tracker declares. All-time stats keep accumulating underneath — `/putt-leaderboard` is unaffected by the reset.
+
+Your month score is **total strokes over total par**: `110/115` means you took 110 strokes on days worth 115, so you finished the month at **-5**. Lowest total to-par wins; ties break on rounds played, then gold medals. Medals are tallied **separately per month**, on top of the all-time count.
+
+#### Missing a day
+
+Skip a scoring day and you are charged the **worst score anyone posted that day, plus 5**. If the day's worst card was `+3`, every no-show takes `+8`. Skipping is therefore always worse than posting a terrible round — the penalty is folded straight into your monthly total, so `110/115` already includes it.
+
+By default, **every day anyone posts a score** becomes a scoring day for everybody. Krampus posts a daily roll call naming the absent, once the callout channel is configured.
+
+#### Round dates and the anchor
+
+Round numbers, not message timestamps, decide which day (and month) a score belongs to. The tracker declares one known round-number/date pair — the **anchor** — and every other round's date is counted from it. That keeps month boundaries correct even when someone posts at 12:30am or backfills a round days late.
+
+Each day's date and par are stored once in a `rounds` index in `data/scores-data.json`, separate from individual scores, so long-term stats can be queried per day without scanning every user.
+
+#### Configuration
 
 Games are defined in `scoretrackers.json`:
 
@@ -191,15 +214,53 @@ Games are defined in `scoretrackers.json`:
       "parGroup": 3,
       "direction": "lower",
       "confirmReaction": "⛳",
-      "minPlayersForMedal": 2
+      "minPlayersForMedal": 2,
+
+      "anchorRound": 70,
+      "anchorDate": "2026-07-21",
+      "timezone": "America/New_York",
+
+      "missedDayPenaltyStrokes": 5,
+      "missedDayFallbackToPar": 5,
+      "minPlayersForPenaltyDay": 1,
+      "minRoundsForMonthlyRank": 1,
+
+      "callout": {
+        "enabled": true,
+        "channelId": "YOUR_CHANNEL_ID_HERE",
+        "hour": 12,
+        "minute": 0,
+        "messages": ["{users} missed {round} on {date}. **{penalty}** each."],
+        "perfectDayMessages": ["Every putter answered the bell for {round}."]
+      }
     }
   ]
 }
 ```
 
+**Parsing**
+
 - **`pattern`** — Regex whose capture groups yield the round number, score, and par; `roundGroup`/`scoreGroup`/`parGroup` say which is which.
 - **`direction`** — `"lower"` means fewer is better (golf). `"higher"` inverts the ranking for make-count style games.
 - **`minPlayersForMedal`** — Rounds with fewer participants than this award no medals.
+
+**Calendar**
+
+- **`anchorRound`** / **`anchorDate`** — One known round-number/date pair. Every other round's date is derived from it. Correcting a wrong anchor is a one-line edit plus a restart — no data migration, since dates are recomputed on load.
+- **`timezone`** — IANA zone defining day and month boundaries. Defaults to `America/New_York`.
+
+**Tournament**
+
+- **`missedDayPenaltyStrokes`** — Strokes added to the day's worst to-par to price a no-show. Default `5`.
+- **`missedDayFallbackToPar`** — Penalty used if a day somehow has no scores to derive a worst from. Default `5`.
+- **`minPlayersForPenaltyDay`** — How many players a day needs before absentees are charged for it. Default `1`, meaning any day someone played counts against everyone. Raise it to soften quiet days.
+- **`minRoundsForMonthlyRank`** — Rounds needed in a month to be ranked. Default `1`. Players below it appear under *Not yet qualified*.
+
+**Callout**
+
+- **`channelId`** — Ships as the literal placeholder `YOUR_CHANNEL_ID_HERE`; the roll call stays off until you replace it with a real channel ID.
+- **`hour`** / **`minute`** — Local time in the tracker's timezone. The scheduler calls out *yesterday's* round, since today's is still in play.
+- **`messages`** / **`perfectDayMessages`** — Picked at random. Placeholders: `{users}`, `{count}`, `{round}`, `{date}`, `{penalty}`. Omit `perfectDayMessages` to stay silent when nobody missed.
 
 Adding another daily game is config-only, though the `/putt-*` commands stay bound to the `puttday` tracker.
 
