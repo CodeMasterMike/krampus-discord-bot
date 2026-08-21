@@ -49,6 +49,23 @@ Create a `.env` file from the template and fill in your credentials:
 cp .env.example .env
 ```
 
+### Server-specific IDs
+
+Channel and role IDs are **not** committed. `smack.json` and `scoretrackers.json` are tracked in git, and the deploy runs a plain `git pull` — which refuses to overwrite local edits to a tracked file. Worse, the workflow neither sets `set -e` nor chains its steps, so the build and pm2 restart still run against the *old* code: the deploy goes green having deployed nothing.
+
+So the real IDs go in `.env`, which is gitignored and already how credentials reach the VM:
+
+```bash
+PUTT_CALLOUT_CHANNEL_ID=000000000000000000   # daily no-show roll call posts here
+SMACK_ROLE_ID=000000000000000001             # role assigned by /smack
+```
+
+To find an ID: enable **Developer Mode** (Discord Settings → Advanced → Developer Mode), then right-click the channel or role and choose **Copy Channel ID** / **Copy Role ID**. On mobile, long-press instead. Alternatively the channel URL is `discord.com/channels/<serverId>/<channelId>` — the last number is the channel.
+
+Both are optional. Leave one unset and its feature simply stays off: the roll call logs `scheduler idle` at boot, and `/smack` replies "The smack role has not been configured yet." The committed JSON keeps a placeholder plus the message templates, and the environment wins whenever it holds a real value.
+
+Make sure the bot has **View Channel** and **Send Messages** in the callout channel, and that its own role sits **above** the punishment role in the server hierarchy.
+
 ### Run the Bot
 
 ```bash
@@ -93,7 +110,7 @@ Summon Krampus to smack another user with his birch rod. This assigns a configur
 1. Create a cosmetic role in your Discord server (e.g. "Punished by Krampus")
 2. Enable Developer Mode in Discord (Settings > Advanced > Developer Mode)
 3. Go to Server Settings > Roles, right-click the role you created, and click **Copy Role ID**
-4. Paste the role ID into `smack.json` under `roleId`
+4. Put the role ID in your `.env` as `SMACK_ROLE_ID=...` (**not** in `smack.json` — see [Server-specific IDs](#server-specific-ids))
 5. Ensure the bot's role is **above** the punishment role in the server role hierarchy
 
 **Configuration (`smack.json`):**
@@ -116,7 +133,7 @@ Summon Krampus to smack another user with his birch rod. This assigns a configur
 
 **Guards:** Can't smack yourself, can't smack bots, server-only, respects per-user cooldown.
 
-**Note:** `smack.json` ships with `roleId` set to the literal placeholder `YOUR_ROLE_ID_HERE`. Until you replace it, `/smack` replies "The smack role has not been configured yet." Cooldowns and the pending role removal are held in memory, so restarting the bot clears cooldowns and leaves the role on anyone currently punished.
+**Note:** `smack.json` ships with `roleId` set to the literal placeholder `YOUR_ROLE_ID_HERE`, and `SMACK_ROLE_ID` is what actually gets read. Until one of them holds a real ID, `/smack` replies "The smack role has not been configured yet." Cooldowns and the pending role removal are held in memory, so restarting the bot clears cooldowns and leaves the role on anyone currently punished.
 
 ## Passive Features
 
@@ -258,7 +275,8 @@ Games are defined in `scoretrackers.json`:
 
 **Callout**
 
-- **`channelId`** — Ships as the literal placeholder `YOUR_CHANNEL_ID_HERE`; the roll call stays off until you replace it with a real channel ID.
+- **`channelIdEnv`** — Names the environment variable holding the real channel ID, checked before `channelId`. Named per tracker so two trackers can post to two channels. This is the one you want — see [Server-specific IDs](#server-specific-ids).
+- **`channelId`** — Committed fallback, shipping as the literal placeholder `YOUR_CHANNEL_ID_HERE`. The roll call stays idle until either this or the env var holds a real channel ID.
 - **`hour`** / **`minute`** — Local time in the tracker's timezone. The scheduler calls out *yesterday's* round, since today's is still in play.
 - **`messages`** / **`perfectDayMessages`** — Picked at random. Placeholders: `{users}`, `{count}`, `{round}`, `{date}`, `{penalty}`. Omit `perfectDayMessages` to stay silent when nobody missed.
 

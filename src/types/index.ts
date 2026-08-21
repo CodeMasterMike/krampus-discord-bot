@@ -43,6 +43,10 @@ export type WordOccurrences = Record<string, number>;
 
 // Smack config types
 export interface SmackConfig {
+  /**
+   * Punishment role. Ships as a placeholder; prefer setting the real ID in
+   * the SMACK_ROLE_ID environment variable, since this file is committed.
+   */
   roleId: string;
   durationSeconds: number;
   cooldownSeconds: number;
@@ -109,8 +113,17 @@ export interface ScoreTracker {
 /** Scheduled daily message naming yesterday's no-shows. */
 export interface CalloutConfig {
   enabled: boolean;
-  /** Channel to post in. Ships as a placeholder; callout stays off until set. */
+  /**
+   * Channel to post in. Ships as a placeholder; the callout stays off until a
+   * real ID is supplied — normally via `channelIdEnv` rather than here, since
+   * this file is committed.
+   */
   channelId: string;
+  /**
+   * Environment variable holding the real channel ID, checked before
+   * `channelId`. Named per tracker so two trackers can post to two channels.
+   */
+  channelIdEnv?: string;
   /** Local hour (0-23) in the tracker's timezone to post at. */
   hour: number;
   /** Local minute (0-59). */

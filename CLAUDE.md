@@ -25,6 +25,12 @@ Requires a `.env` file with:
 - `DISCORD_TOKEN` - Bot token
 - `PUBLIC_KEY` - Discord application public key
 
+Optional, and **the only correct home for server-specific IDs** (see `src/utils/env.ts`):
+- `SMACK_ROLE_ID` - punishment role for `/smack`
+- `PUTT_CALLOUT_CHANNEL_ID` - channel the daily no-show roll call posts to
+
+`smack.json` and `scoretrackers.json` are tracked in git and the deploy runs a plain `git pull`, which refuses to overwrite local edits to tracked files. Because `deploy.yml` neither sets `set -e` nor chains its steps, a rejected pull still proceeds to build and restart — the deploy reports success having shipped nothing. Keeping IDs in `.env` (gitignored) avoids that entirely. Each resolves via `resolveId()`: env first, committed config as fallback, and the shipped placeholder counts as unset.
+
 **Important:** Enable MESSAGE_CONTENT privileged intent in Discord Developer Portal (Bot > Privileged Gateway Intents).
 
 ## Deployment
@@ -65,7 +71,8 @@ src/
     scoredates.ts            # Round<->date anchoring, month keys, timezone-aware "today"
     callout.ts               # Daily no-show roll call scheduler (once-a-minute tick)
     encounters.ts            # Random encounter roll + message formatting
-    smack.ts                 # Smack config load + in-memory cooldown map
+    smack.ts                 # Smack config load, role-ID resolution, in-memory cooldown map
+    env.ts                   # resolveId(): env-first ID lookup, placeholder-aware
     version.ts               # Reads version out of package.json
 
 Root config (loaded at startup, restart to pick up edits):
@@ -95,11 +102,11 @@ data/                        # Persisted state, gitignored
 - **Rotating presence** (`ready.ts`) — Picks a random status from an in-file `krampusStatuses` array on ready, then re-rolls hourly via `setInterval`.
 - **Word tracking** (`wordcounter.ts`) — Counts tracked word occurrences per user, persists to `data/wordcounts-data.json`, announces milestones. Only the highest milestone crossed per message is announced. Matching is `\b` + word with **no trailing boundary**, so entries match as stems: `no` counts inside "nothing", `kramp` inside "krampus". Adjust the word list with that in mind.
 - **Random encounters** (`encounters.ts`) — Rolls `chance` (default 2%) per message; on a hit, coin-flips between reacting with a random emoji and sending a random atmospheric message (`{user}` → mention).
-- **Smack** (`smack.ts` command + util) — Assigns the configured role, replies with a random announcement, and removes the role after `durationSeconds` via `setTimeout`. Guards: no self-smacks, no bots, guild-only, role must exist, per-user cooldown. Both the cooldown map and the removal timer are **in-memory** — a restart clears cooldowns and strands the role on anyone mid-punishment.
+- **Smack** (`smack.ts` command + util) — Assigns the configured role, replies with a random announcement, and removes the role after `durationSeconds` via `setTimeout`. The role ID comes from `getSmackRoleId()`, which reads `SMACK_ROLE_ID` before `smack.json`; the shipped placeholder resolves to null, so `/smack` correctly reports "not configured yet" rather than failing later with a misleading "role not found in this server". Guards: no self-smacks, no bots, guild-only, role must exist, per-user cooldown. Both the cooldown map and the removal timer are **in-memory** — a restart clears cooldowns and strands the role on anyone mid-punishment.
 - **Score tracking** (`scoretracker.ts`) — Config-driven score parser (`scoretrackers.json`) for daily-puzzle games like putt.day. On each message, runs every tracker's regex; the first submission of a given round number per user is logged to `data/scores-data.json` (later re-posts of the same round are ignored) and confirmed with a quiet reaction. Golf scoring: the captured pair is **strokes/par** (e.g. `9/10` is a birdie against par 10), and **lowest wins**. Handicap = average strokes relative to par (negative = under par); because par is captured per round, this stays fair when par varies. Place finishes (🥇🥈🥉) are derived live by ranking each round's participants by to-par (ties share a place; rounds need `minPlayersForMedal` players to count). "Today" = the highest round number recorded. Surfaced via `/putt-today`, `/putt-leaderboard`, `/putt-card`.
 - **Round dates** (`scoredates.ts`) — Round numbers, not message timestamps, decide which calendar day (and month) a score belongs to. A tracker declares one known `anchorRound`/`anchorDate` pair and every other round's date is counted from it, so a 12:30am post or a late backfill still lands on its real day. Arithmetic runs on bare `YYYY-MM-DD` strings through UTC, so DST never shifts a date; the tracker's `timezone` is only consulted for "what is today". Dates are **recomputed on every load**, so fixing a wrong anchor is a config edit plus a restart — no data migration.
 - **Monthly tournaments** (`scoretracker.ts` → `computeMonth()`) — Each calendar month is its own tournament, resetting on the 1st in the tracker's timezone; all-time stats are untouched by the reset. Scoring days are every round in the month that anyone logged. Missing one costs the **worst to-par posted that day plus `missedDayPenaltyStrokes`** (default 5), so skipping is always worse than posting the day's worst card. A day only charges absentees once `minPlayersForPenaltyDay` players logged it (default 1 — any day someone played counts against everyone); below that threshold the day is excluded from absentees' par as well as their score, so totals stay self-consistent. Month score is **total strokes / total par** (`110/115` = -5), ranked lowest-first, ties broken by rounds played then golds. Medals are tallied separately per month. Players below `minRoundsForMonthlyRank` (default 1) land in `unranked`. Surfaced via `/putt-month`, `/putt-season`, `/putt-card`, `/putt-help`.
-- **No-show callout** (`callout.ts`) — The only feature not driven by an incoming message, so it runs on a timer. Ticks once a minute and compares the tracker's **local** wall clock to the configured `hour`/`minute` — cheaper than a timezone-aware delay and immune to DST, since each tick re-reads local time. Calls out *yesterday's* round (today's is still in play). The last callout date is persisted to `lastCalloutDate`, so a restart never reposts and an outage past the hour still posts once the bot returns; the stamp is written **before** sending so a failed send can't retry-storm for the rest of the day. Stays idle until `callout.channelId` is set to a real channel.
+- **No-show callout** (`callout.ts`) — The only feature not driven by an incoming message, so it runs on a timer. Ticks once a minute and compares the tracker's **local** wall clock to the configured `hour`/`minute` — cheaper than a timezone-aware delay and immune to DST, since each tick re-reads local time. Calls out *yesterday's* round (today's is still in play). The last callout date is persisted to `lastCalloutDate`, so a restart never reposts and an outage past the hour still posts once the bot returns; the stamp is written **before** sending so a failed send can't retry-storm for the rest of the day. Stays idle until a real channel resolves — normally from `PUTT_CALLOUT_CHANNEL_ID`, since `callout.channelIdEnv` names the variable per tracker so two trackers can post to two channels.
 
 **Pattern Config Format (`patterns.json`):**
 ```json
@@ -145,7 +152,7 @@ Placeholders: `{user}` (mention), `{word}`, `{count}`. Milestones should stay so
 }
 ```
 
-`roleId` ships as the literal placeholder, so `/smack` refuses with "The smack role has not been configured yet." until a real role ID is filled in. The bot's own role must sit **above** the punishment role in the server hierarchy or the role assignment fails. Placeholders: `{user}` (attacker), `{target}` (victim).
+`roleId` is the committed fallback and ships as a placeholder; the real ID belongs in `SMACK_ROLE_ID`, since this file is tracked (see **Environment Setup**). With neither set, `/smack` refuses with "The smack role has not been configured yet." The bot's own role must sit **above** the punishment role in the server hierarchy or the role assignment fails. Placeholders: `{user}` (attacker), `{target}` (victim).
 
 **Score Tracker Config Format (`scoretrackers.json`):**
 ```json
@@ -172,6 +179,7 @@ Placeholders: `{user}` (mention), `{word}`, `{count}`. Milestones should stay so
       "callout": {
         "enabled": true,
         "channelId": "YOUR_CHANNEL_ID_HERE",
+        "channelIdEnv": "PUTT_CALLOUT_CHANNEL_ID",
         "hour": 12, "minute": 0,
         "messages": ["{users} missed {round} on {date}. **{penalty}** each."],
         "perfectDayMessages": ["Every putter answered the bell for {round}."]
@@ -191,7 +199,7 @@ Everything below `minPlayersForMedal` is optional and defaults as shown, so a pr
 - `missedDayFallbackToPar` (5) — penalty when a day has no scores to derive a worst from (only reachable via hand-edited data).
 - `minPlayersForPenaltyDay` (1) — players a day needs before absentees are charged for it.
 - `minRoundsForMonthlyRank` (1) — rounds needed in a month to be ranked rather than `unranked`.
-- `callout` — daily roll call. `channelId` ships as the literal `YOUR_CHANNEL_ID_HERE`, and the scheduler stays idle until it is replaced. Placeholders: `{users}` `{count}` `{round}` `{date}` `{penalty}`.
+- `callout` — daily roll call. `channelIdEnv` names the env var holding the real channel ID and is checked first; `channelId` is the committed fallback, shipping as the literal `YOUR_CHANNEL_ID_HERE`. The scheduler stays idle until one of them resolves. Placeholders: `{users}` `{count}` `{round}` `{date}` `{penalty}`.
 
 **Score Data Format (`data/scores-data.json`, v2):**
 ```json

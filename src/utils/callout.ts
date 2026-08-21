@@ -9,6 +9,7 @@ import {
   formatToPar
 } from './scoretracker.js';
 import { nowInZone, addDays, getTimezone } from './scoredates.js';
+import { resolveId } from './env.js';
 
 /**
  * Daily no-show roll call.
@@ -25,15 +26,20 @@ import { nowInZone, addDays, getTimezone } from './scoredates.js';
  */
 
 const TICK_MS = 60 * 1000;
-const CHANNEL_PLACEHOLDER = 'YOUR_CHANNEL_ID_HERE';
+
+/**
+ * The channel this tracker posts to, or null if it isn't set up. The real ID
+ * normally comes from the environment (see utils/env.ts) — the committed
+ * config only carries a placeholder.
+ */
+export function calloutChannelId(tracker: ScoreTracker): string | null {
+  const callout = tracker.callout;
+  if (!callout?.enabled || !callout.messages?.length) return null;
+  return resolveId(callout.channelIdEnv, callout.channelId);
+}
 
 function isConfigured(callout: CalloutConfig | undefined): callout is CalloutConfig {
-  return Boolean(
-    callout?.enabled &&
-      callout.channelId &&
-      callout.channelId !== CHANNEL_PLACEHOLDER &&
-      callout.messages?.length
-  );
+  return Boolean(callout?.enabled && callout.messages?.length);
 }
 
 function pick(messages: string[]): string {
@@ -107,6 +113,9 @@ async function tick(client: Client): Promise<void> {
     const callout = tracker.callout;
     if (!isConfigured(callout)) continue;
 
+    const channelId = calloutChannelId(tracker);
+    if (!channelId) continue;
+
     const zone = getTimezone(tracker);
     const now = nowInZone(zone);
 
@@ -126,7 +135,7 @@ async function tick(client: Client): Promise<void> {
       if (!message) continue;
 
       console.log(`[CALLOUT] Posting ${tracker.name} roll call for ${now.date}.`);
-      await send(client, callout.channelId, message);
+      await send(client, channelId, message);
     } catch (error) {
       console.error(`[CALLOUT] Failed for ${tracker.name}:`, (error as Error).message);
     }
@@ -135,10 +144,15 @@ async function tick(client: Client): Promise<void> {
 
 /** Start the once-a-minute callout loop. Called once from ClientReady. */
 export function startCalloutScheduler(client: Client): void {
-  const active = getTrackers().filter(t => isConfigured(t.callout));
+  const active = getTrackers().filter(t => calloutChannelId(t) !== null);
 
   if (active.length === 0) {
-    console.log('[CALLOUT] No tracker has a configured callout channel — scheduler idle.');
+    const named = getTrackers()
+      .filter(t => t.callout?.enabled)
+      .map(t => t.callout?.channelIdEnv)
+      .filter(Boolean);
+    const hint = named.length ? ` Set ${named.join(' or ')} in .env to enable it.` : '';
+    console.log(`[CALLOUT] No tracker has a callout channel configured — scheduler idle.${hint}`);
     return;
   }
 

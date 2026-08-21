@@ -23,6 +23,7 @@
       "callout": {
         "enabled": true,
         "channelId": "YOUR_CHANNEL_ID_HERE",
+        "channelIdEnv": "PUTT_CALLOUT_CHANNEL_ID",
         "hour": 12,
         "minute": 0,
         "messages": [
