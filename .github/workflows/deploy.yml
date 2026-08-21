@@ -33,10 +33,12 @@ jobs:
           key: ${{ secrets.VM_SSH_KEY }}
           # Forward the values above into the remote shell.
           envs: APP_ID,DISCORD_TOKEN,PUBLIC_KEY,SMACK_ROLE_ID,PUTT_CALLOUT_CHANNEL_ID
-          # Abort on the first failing command. Without this the remote script
-          # runs to completion regardless, so a rejected `git pull` still built
-          # and restarted the old code and the job reported success.
-          script_stop: true
+          # `set -e` below is what aborts on the first failing command, and the
+          # action propagates the remote exit status to the job. (ssh-action v1
+          # dropped the older `script_stop` input; passing it is a no-op that
+          # only earns an "unexpected input" warning.) Without this the script
+          # would run to completion regardless, so a rejected `git pull` would
+          # still build and restart the old code and the job would go green.
           script: |
             set -euo pipefail
 
@@ -46,8 +48,19 @@ jobs:
             # refuse to overwrite it. Fail here with the actual file list rather
             # than three steps later with a confusing merge error.
             if ! git diff --quiet HEAD; then
-              echo "::error::VM working tree has uncommitted changes, so git pull will be rejected. Server-specific values belong in repository secrets, not in tracked config. Revert these files:"
+              echo "::error::VM working tree has uncommitted changes, so git pull will be rejected. See the log for the file list and how to clear it."
+              echo "Modified tracked files on the VM:"
               git status --short
+              echo ""
+              echo "To clear this, on the VM:"
+              echo "  cd ~/revenge-of-krampus-discord-bot"
+              echo "  git diff -- smack.json scoretrackers.json   # read any real IDs BEFORE discarding them"
+              echo "  git checkout -- <the files listed above>"
+              echo ""
+              echo "A server-specific ID found in those files belongs in a repository secret"
+              echo "(SMACK_ROLE_ID / PUTT_CALLOUT_CHANNEL_ID), not in the tracked config — it will"
+              echo "be written into .env on the next deploy. package-lock.json drifts from an old"
+              echo "'npm install' on the server and is safe to discard; deploys now use 'npm ci'."
               exit 1
             fi
 
