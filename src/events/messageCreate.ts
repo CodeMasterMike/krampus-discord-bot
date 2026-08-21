@@ -26,24 +26,38 @@ export async function execute(message: Message): Promise<void> {
   const channelName = 'name' in message.channel ? message.channel.name : 'DM';
   console.log(`[DEBUG] Message from ${message.author.tag} in #${channelName}: "${content}"`);
 
-  for (const patternConfig of patternsConfig.patterns) {
+  // Every matching pattern fires, in config order — a message saying both
+  // "hello" and "meat" earns both reactions, and a reply pattern lands
+  // alongside them rather than being suppressed by whichever matched first.
+  const matched = patternsConfig.patterns.filter(patternConfig => {
     const regex = patternToRegex(patternConfig.pattern);
-    const matched = regex.test(content);
-    console.log(`[DEBUG]   Pattern "${patternConfig.pattern}" (${regex}) → ${matched ? 'MATCH' : 'no match'}`);
+    const hit = regex.test(content);
+    console.log(`[DEBUG]   Pattern "${patternConfig.pattern}" (${regex}) → ${hit ? 'MATCH' : 'no match'}`);
+    return hit;
+  });
 
-    if (matched) {
-      try {
-        if (patternConfig.type === 'react') {
-          console.log(`[DEBUG]   → Reacting with: ${patternConfig.emoji}`);
-          await message.react(patternConfig.emoji);
-        } else if (patternConfig.type === 'reply') {
-          console.log(`[DEBUG]   → Replying with: ${patternConfig.message}`);
-          await message.reply(patternConfig.message);
+  // Two patterns can share an emoji. Discord ignores a repeat from the same
+  // user, so skip it rather than spending an API call to find that out.
+  const reacted = new Set<string>();
+
+  for (const patternConfig of matched) {
+    try {
+      if (patternConfig.type === 'react') {
+        if (reacted.has(patternConfig.emoji)) {
+          console.log(`[DEBUG]   → Skipping duplicate reaction: ${patternConfig.emoji}`);
+          continue;
         }
-      } catch (error) {
-        console.error(`Error processing pattern "${patternConfig.pattern}":`, error);
+        reacted.add(patternConfig.emoji);
+        console.log(`[DEBUG]   → Reacting with: ${patternConfig.emoji}`);
+        await message.react(patternConfig.emoji);
+      } else {
+        console.log(`[DEBUG]   → Replying with: ${patternConfig.message}`);
+        await message.reply(patternConfig.message);
       }
-      break; // Stop after first match
+    } catch (error) {
+      // Isolated per pattern: one emoji the bot lacks permission for must not
+      // cost you the reply that also matched.
+      console.error(`Error processing pattern "${patternConfig.pattern}":`, (error as Error).message);
     }
   }
 
@@ -106,11 +120,16 @@ export async function execute(message: Message): Promise<void> {
     }
   }
 
-  // Random Krampus encounters
-  const encounter = rollEncounter(encountersConfig);
-  if (encounter) {
+  // Random Krampus encounters — a single appearance can both react and speak,
+  // and stacks on top of whatever the pattern pipeline already did.
+  for (const encounter of rollEncounter(encountersConfig)) {
     try {
       if (encounter.type === 'react') {
+        if (reacted.has(encounter.value)) {
+          console.log(`[DEBUG] Krampus encounter reaction ${encounter.value} already applied — skipping.`);
+          continue;
+        }
+        reacted.add(encounter.value);
         console.log(`[DEBUG] Krampus encounter! Reacting with: ${encounter.value}`);
         await message.react(encounter.value);
       } else {
@@ -121,7 +140,7 @@ export async function execute(message: Message): Promise<void> {
         }
       }
     } catch (error) {
-      console.error('Error processing Krampus encounter:', error);
+      console.error('Error processing Krampus encounter:', (error as Error).message);
     }
   }
 }

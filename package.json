@@ -9,10 +9,11 @@
     "node": ">=18.x"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "node scripts/check-commands.mjs && tsc",
     "start": "node dist/bot.js",
     "dev": "nodemon --exec tsx src/bot.ts --ext ts,json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node scripts/check-commands.mjs && tsc --noEmit",
+    "check:commands": "node scripts/check-commands.mjs"
   },
   "author": "Michael McAlpin",
   "license": "MIT",
