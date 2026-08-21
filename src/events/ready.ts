@@ -24,8 +24,11 @@ const commands: BotCommand[] = [
   smackCommand,
   versionCommand,
   puttTodayCommand,
+  puttMonthCommand,
+  puttSeasonCommand,
   puttLeaderboardCommand,
-  puttCardCommand
+  puttCardCommand,
+  puttHelpCommand
 ];
 
 const krampusStatuses = [

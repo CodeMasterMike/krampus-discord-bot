@@ -16,7 +16,7 @@ npm run dev          # Run with tsx + nodemon for auto-reload
 npm run typecheck    # Type-check without emitting
 ```
 
-No test or lint tooling is configured.
+`npm run build` and `npm run typecheck` both run `scripts/check-commands.mjs` first, which verifies every `src/commands/*.ts` is registered in `ready.ts` and routed in `interactionCreate.ts`. Run it alone with `npm run check:commands`. No other test or lint tooling is configured.
 
 ## Environment Setup
 
@@ -97,7 +97,9 @@ data/                        # Persisted state, gitignored
 
 **Event handler convention:** Each event file exports `name` (Discord event), `once` (boolean), and `execute()`. `bot.ts` registers them dynamically using the `BotEvent` interface.
 
-**Adding a new slash command:** Create a file in `src/commands/` exporting `data` (SlashCommandBuilder) and `execute(interaction: ChatInputCommandInteraction)`. Then import it in both `src/events/ready.ts` (for registration) and `src/events/interactionCreate.ts` (for routing).
+**Adding a new slash command:** Create a file in `src/commands/` exporting `data` (SlashCommandBuilder) and `execute(interaction)`. Then wire it in **both** `src/events/ready.ts` (add to the `commands` array — this is what gets PUT to Discord) and `src/events/interactionCreate.ts` (add to the Collection for routing).
+
+Missing the `ready.ts` array is the dangerous half: the build passes, the bot starts, the command routes — but Discord was never told it exists, so it never appears in any client and typing it just posts plain text. `scripts/check-commands.mjs` guards against exactly that and runs as part of `npm run build`, so a deploy fails rather than shipping an invisible command. `noUnusedLocals` is on, which independently catches an import that was added but never used.
 
 **Message pipelines:** `messageCreate.ts` ignores bot authors, then runs four independent pipelines in order on every message — patterns, word counting, score tracking, encounters. They do **not** short-circuit each other: one message can react to a pattern, cross a word milestone, and log a score. Throughout, `[DEBUG]` console logs narrate each step.
 
