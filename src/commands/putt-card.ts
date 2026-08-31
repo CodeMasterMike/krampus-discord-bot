@@ -73,8 +73,13 @@ export async function execute(interaction: ChatInputCommandInteraction): Promise
     lines.push(
       `Total: **${standing.totalStrokes}/${standing.totalPar}** (${formatToPar(standing.toPar)}) — ${rank}`
     );
+    // Gate on missedDays, not on the penalty being positive: the charge for a
+    // day the whole field birdied can itself be under par, and hiding it then
+    // would silently drop the explanation for a chunk of the total.
     lines.push(`Played **${standing.roundsPlayed}** · missed **${standing.missedDays}**` +
-      (standing.penaltyStrokes > 0 ? ` _(+${standing.penaltyStrokes} in penalties)_` : ''));
+      (standing.missedDays > 0
+        ? ` _(${formatToPar(standing.penaltyStrokes)} to par from misses)_`
+        : ''));
     lines.push(`Streak: **${standing.currentStreak}** 🔥 _(best this month: ${standing.longestStreak})_`);
     lines.push(`Month medals: ${medalLine(standing.medals)}`);
   } else {

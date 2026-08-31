@@ -37,7 +37,9 @@ function totalLine(s: MonthlyStanding): string {
 function detailLine(s: MonthlyStanding): string {
   const parts = [`${s.roundsPlayed} played`];
   if (s.missedDays > 0) {
-    parts.push(`${s.missedDays} missed (+${s.penaltyStrokes})`);
+    // formatToPar, not a hardcoded '+': on a day where the whole field beat
+    // par, worst-plus-five can still be under par, so this figure goes negative.
+    parts.push(`${s.missedDays} missed (${formatToPar(s.penaltyStrokes)} to par)`);
   }
   if (s.currentStreak > 1) {
     parts.push(`🔥${s.currentStreak}`);

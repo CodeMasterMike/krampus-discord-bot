@@ -264,7 +264,11 @@ export interface MonthlyStanding {
   totalPar: number;
   /** totalStrokes vs totalPar — the "-5". */
   toPar: number;
-  /** Strokes contributed by penalties alone. */
+  /**
+   * To-par contributed by missed days alone. Can be **negative**: the charge
+   * is the day's worst to-par plus the penalty, and on a day the whole field
+   * beat par that sum can still be under par. Format it with formatToPar().
+   */
   penaltyStrokes: number;
   /** Medals won within this month only. */
   medals: MedalCounts;
